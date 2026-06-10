@@ -35,6 +35,9 @@ const Home = () => {
     "Wah Cantt",
     "Hassan Abdal",
     "Attock",
+    "Golra",
+    "Jhamra",
+    "Fateh Jang",
   ];
 
   return (
