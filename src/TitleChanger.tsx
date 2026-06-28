@@ -5,7 +5,6 @@ export default function TitleChanger() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    // Centralized list of titles for each route
     const titles: Record<string, string> = {
       "/": "Home | BTechX",
       "/newconnectionform": "Fill this form for your Internet Subscription | BTechX",
@@ -14,12 +13,11 @@ export default function TitleChanger() {
       "/about": "About Us | BTechX",
       "/faq": "Frequently Asked Questions | BTechX",
       "/contact": "Contact Us | BTechX",
+      "/admin/connections": "Admin | BTechX",
     };
 
-    // Select title based on current URL
     document.title = titles[pathname] || "Page Not Found | BTechX";
   }, [pathname]);
 
-  // This component does not render anything on screen
   return null;
 }

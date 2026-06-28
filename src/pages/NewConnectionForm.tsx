@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/lib/supabaseClient";
 
-// Validation schema
 const schema = z.object({
   serviceFor: z.string().min(1, "Service type is required"),
   name: z.string().trim().min(1, "Name is required"),
@@ -28,6 +28,14 @@ type NewConnectionFormData = z.infer<typeof schema>;
 
 const selectStyle =
   "w-full rounded-md border border-input bg-white text-black px-3 py-2 text-sm shadow-sm focus:outline-none";
+
+const EQUIPMENT_POLICIES = [
+  "Company offers first 5 days checking and equipment replacement for free. After it 60% will be returned",
+  "Rs. 3000 shall be charged in case of POE unit malfunction",
+  "Rs. 4500 shall be charged in case of Router malfunction. (Single Bandwidth Router)",
+  "Rs. 500 shall be charged in case of Adapter malfunction",
+  "Rs. 90/meter shall be charged in case of Lan Cable malfunction",
+];
 
 export default function NewConnectionForm() {
   const { toast } = useToast();
@@ -50,37 +58,28 @@ export default function NewConnectionForm() {
 
   const onSubmit = async (data: NewConnectionFormData) => {
     try {
-      const response = await fetch("https://btechx.net/new-connection/save-form.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          serviceFor: data.serviceFor,
+      const { error } = await supabase.from("new_connection_requests").insert([
+        {
+          service_for: data.serviceFor,
           name: data.name,
           phone: data.phone,
           email: data.email,
           address: data.address,
           cnic: data.cnic,
           plan: data.plan,
-          equipmentPolicies: data.equipmentPolicies.join(", "),
-          additionalRouter: data.additionalRouter,
-          supportPolicy: data.supportPolicy,
-        }),
+          equipment_policies: data.equipmentPolicies.join(", "),
+          additional_router: data.additionalRouter,
+          support_policy: data.supportPolicy,
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Your request has been submitted successfully!",
       });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast({
-          title: "Success",
-          description: "Your request has been submitted successfully!",
-        });
-        form.reset();
-      } else {
-        toast({
-          title: "Error",
-          description: result.message || "Failed to submit the form.",
-        });
-      }
+      form.reset();
     } catch (error) {
       console.error(error);
       toast({
@@ -106,6 +105,7 @@ export default function NewConnectionForm() {
           <Card className="p-8 max-w-4xl mx-auto glass">
             <FormProvider {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+
                 {/* Service For */}
                 <Controller
                   name="serviceFor"
@@ -120,7 +120,9 @@ export default function NewConnectionForm() {
                         <option value="Shop">Shop</option>
                         <option value="Other">Other</option>
                       </select>
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -133,7 +135,9 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">Name *</label>
                       <Input placeholder="Your name" {...field} />
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -146,7 +150,9 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">Phone Number *</label>
                       <Input placeholder="Your phone number" type="tel" {...field} />
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -159,7 +165,9 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">Email *</label>
                       <Input placeholder="Your email" type="email" {...field} />
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -172,7 +180,9 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">Address *</label>
                       <Textarea placeholder="Your complete address" rows={3} {...field} />
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -185,34 +195,37 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">CNIC Number *</label>
                       <Input placeholder="xxxxx-xxxxxxx-x" maxLength={15} {...field} />
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
 
                 {/* Plan */}
-{/* Plan */}
-<Controller
-  name="plan"
-  control={form.control}
-  render={({ field, fieldState }) => (
-    <div className="space-y-1">
-      <label className="block font-semibold">Subscription Plan *</label>
-      <select {...field} className={selectStyle}>
-        <option value="">Select a plan</option>
-        <option value="Rs. 22000 For Packages 6Mbps upto 16Mbps">
-          Rs. 22,000 for 6 to 16 Mbps
-        </option>
-        <option value="Rs. 35000 For Packages 20Mbps upto 50Mbps">
-          Rs. 35,000 for 20 to 50 Mbps
-        </option>
-        <option value="FTTH">FTTH</option>
-        <option value="Own Equipments">Own Equipments</option>
-      </select>
-      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
-    </div>
-  )}
-/>
+                <Controller
+                  name="plan"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <div className="space-y-1">
+                      <label className="block font-semibold">Subscription Plan *</label>
+                      <select {...field} className={selectStyle}>
+                        <option value="">Select a plan</option>
+                        <option value="Rs. 22000 For Packages 6Mbps upto 16Mbps">
+                          Rs. 22,000 for 6 to 16 Mbps
+                        </option>
+                        <option value="Rs. 35000 For Packages 20Mbps upto 50Mbps">
+                          Rs. 35,000 for 20 to 50 Mbps
+                        </option>
+                        <option value="FTTH">FTTH</option>
+                        <option value="Own Equipments">Own Equipments</option>
+                      </select>
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
 
                 {/* Equipment Policies */}
                 <Controller
@@ -223,14 +236,8 @@ export default function NewConnectionForm() {
                       <label className="block font-semibold mb-3">
                         Equipment Replacement and Warranty Policies *
                       </label>
-                      {[
-                        "Company offers first 5 days checking and equipment replacement for free. After it 60% will be returned",
-                        "Rs. 3000 shall be charged in case of POE unit malfunction",
-                        "Rs. 4500 shall be charged in case of Router malfunction. (Single Bandwidth Router)",
-                        "Rs. 500 shall be charged in case of Adapter malfunction",
-                        "Rs. 90/meter shall be charged in case of Lan Cable malfunction",
-                      ].map((policy) => (
-                        <label key={policy} className="flex items-start text-sm mt-2">
+                      {EQUIPMENT_POLICIES.map((policy) => (
+                        <label key={policy} className="flex items-start text-sm mt-2 cursor-pointer">
                           <input
                             type="checkbox"
                             value={policy}
@@ -246,7 +253,9 @@ export default function NewConnectionForm() {
                           <span>{policy}</span>
                         </label>
                       ))}
-                      {fieldState.error && <p className="text-sm text-destructive mt-2">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive mt-2">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -265,7 +274,9 @@ export default function NewConnectionForm() {
                         </option>
                         <option value="No, I don't need">No</option>
                       </select>
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
@@ -279,18 +290,25 @@ export default function NewConnectionForm() {
                       <label className="block font-semibold">Support Policy *</label>
                       <select {...field} className={selectStyle}>
                         <option value="">Select</option>
-                        <option value="Friday is off and 10Am to 8PM are official visit hours,I agree to pay Rs. 300 in case of emergency complaint after visit hours.">
-                          I agree - Friday is off, 10AM to 8PM official hours. Rs. 300 for emergency after hours.
+                        <option value="Friday is off and 10Am to 8PM are official visit hours, I agree to pay Rs. 300 in case of emergency complaint after visit hours.">
+                          I agree — Friday off, 10AM–8PM official hours. Rs. 300 for after-hours emergency.
                         </option>
                       </select>
-                      {fieldState.error && <p className="text-sm text-destructive">{fieldState.error.message}</p>}
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
                     </div>
                   )}
                 />
 
-                <Button type="submit" className="w-full gradient-primary hover:opacity-90">
-                  Submit Request
+                <Button
+                  type="submit"
+                  className="w-full gradient-primary hover:opacity-90"
+                  disabled={form.formState.isSubmitting}
+                >
+                  {form.formState.isSubmitting ? "Submitting..." : "Submit Request"}
                 </Button>
+
               </form>
             </FormProvider>
           </Card>
