@@ -109,14 +109,18 @@ const Coverage = () => {
           <Card className="glass p-8 mb-12">
             <div className="aspect-video rounded-lg overflow-hidden">
               <MapContainer
-                center={[33.7465, 72.7873]} 
-                zoom={11}
-                scrollWheelZoom={true}
-                className="w-full h-full z-10 rounded-lg"
+                {...({
+                  center: [33.7465, 72.7873],
+                  zoom: 11,
+                  scrollWheelZoom: true,
+                  className: "w-full h-full z-10 rounded-lg",
+                } as any)}
               >
                 <TileLayer
-                  attribution="&copy; OpenStreetMap contributors"
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  {...({
+                    attribution: "&copy; OpenStreetMap contributors",
+                    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                  } as any)}
                 />
 
                 {/* MARKERS */}
