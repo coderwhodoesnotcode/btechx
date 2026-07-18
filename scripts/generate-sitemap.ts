@@ -4,7 +4,7 @@
 
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-  const DOMAIN = 'https://www.yoursite.com';
+const DOMAIN = 'https://www.btechx.net';
 
   const routes: string[] = [
     '/',
