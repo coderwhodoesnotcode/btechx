@@ -215,7 +215,7 @@ export default function NewConnectionForm() {
                           Rs. 22,000 for 6 to 16 Mbps
                         </option>
                         <option value="Rs. 35000 For Packages 20Mbps upto 50Mbps">
-                          Rs. 35,000 for 20 to 50 Mbps
+                          Rs. 38,000 for 20 to 50 Mbps
                         </option>
                         <option value="FTTH">FTTH</option>
                         <option value="Own Equipments">Own Equipments</option>
