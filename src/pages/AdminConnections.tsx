@@ -18,6 +18,8 @@ type Submission = {
   email: string;
   address: string;
   cnic: string;
+  cnic_front_url: string;
+  cnic_back_url: string;
   plan: string;
   equipment_policies: string;
   additional_router: string;
@@ -65,6 +67,54 @@ function Detail({
         {label}
       </p>
       <p className="text-sm">{value || "—"}</p>
+    </div>
+  );
+}
+
+// ─── Full-size image viewer ───────────────────────────────────────────────────
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out"
+    >
+      <img
+        src={src}
+        alt="CNIC full view"
+        className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+    </div>
+  );
+}
+
+// ─── CNIC image thumbnail ─────────────────────────────────────────────────────
+function CnicImage({
+  label,
+  url,
+  onZoom,
+}: {
+  label: string;
+  url: string;
+  onZoom: (url: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+        {label}
+      </p>
+      {url ? (
+        <img
+          src={url}
+          alt={label}
+          onClick={() => onZoom(url)}
+          className="w-full h-32 object-cover rounded-md border border-input cursor-zoom-in hover:opacity-90 transition-opacity"
+        />
+      ) : (
+        <div className="w-full h-32 rounded-md border border-dashed border-input flex items-center justify-center text-xs text-muted-foreground">
+          Not uploaded
+        </div>
+      )}
     </div>
   );
 }
@@ -147,6 +197,7 @@ export default function AdminConnections() {
   const [filterPlan, setFilterPlan] = useState("All");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (authed) fetchSubmissions();
@@ -186,16 +237,18 @@ export default function AdminConnections() {
       "Date", "Name", "Phone", "Email", "CNIC",
       "Service For", "Plan", "Address",
       "Additional Router", "Support Policy", "Equipment Policies",
+      "CNIC Front URL", "CNIC Back URL",
     ];
     const rows = filtered.map((s) => [
       new Date(s.created_at).toLocaleString(),
       s.name, s.phone, s.email, s.cnic,
       s.service_for, s.plan, s.address,
       s.additional_router, s.support_policy, s.equipment_policies,
+      s.cnic_front_url, s.cnic_back_url,
     ]);
     const csv = [headers, ...rows]
       .map((row) =>
-        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+        row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")
       )
       .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -357,7 +410,7 @@ export default function AdminConnections() {
                   </div>
 
                   {/* Details Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm mb-5">
                     <Detail label="Phone" value={s.phone} />
                     <Detail label="Email" value={s.email} />
                     <Detail label="CNIC" value={s.cnic} />
@@ -365,12 +418,22 @@ export default function AdminConnections() {
                     <Detail label="Equipment Policies" value={s.equipment_policies} fullWidth />
                     <Detail label="Support Policy" value={s.support_policy} fullWidth />
                   </div>
+
+                  {/* CNIC Images */}
+                  <div className="grid grid-cols-2 gap-4 max-w-md">
+                    <CnicImage label="CNIC Front" url={s.cnic_front_url} onZoom={setLightboxSrc} />
+                    <CnicImage label="CNIC Back" url={s.cnic_back_url} onZoom={setLightboxSrc} />
+                  </div>
                 </Card>
               ))}
             </div>
           )}
         </div>
       </section>
+
+      {lightboxSrc && (
+        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
+      )}
 
       <Footer />
     </div>

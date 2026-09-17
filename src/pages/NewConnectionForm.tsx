@@ -11,6 +11,17 @@ import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabaseClient";
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+
+const fileSchema = z
+  .instanceof(File, { message: "Image is required" })
+  .refine((file) => file.size <= MAX_FILE_SIZE, "Image must be under 5MB")
+  .refine(
+    (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
+    "Only JPG, PNG or WEBP images are allowed"
+  );
+
 const schema = z.object({
   serviceFor: z.string().min(1, "Service type is required"),
   name: z.string().trim().min(1, "Name is required"),
@@ -18,6 +29,8 @@ const schema = z.object({
   email: z.string().trim().email("Valid email required"),
   address: z.string().trim().min(10, "Address is required"),
   cnic: z.string().trim().min(13, "Valid CNIC required"),
+  cnicFront: fileSchema,
+  cnicBack: fileSchema,
   plan: z.string().min(1, "Please select a plan"),
   equipmentPolicies: z.array(z.string()).min(1, "Please accept at least one policy"),
   additionalRouter: z.string().min(1, "Please select an option"),
@@ -35,7 +48,68 @@ const EQUIPMENT_POLICIES = [
   "Rs. 4500 shall be charged in case of Router malfunction. (Single Bandwidth Router)",
   "Rs. 500 shall be charged in case of Adapter malfunction",
   "Rs. 90/meter shall be charged in case of Lan Cable malfunction",
+  "All equipment remains the property of the company; it must be returned in working condition upon service discontinuation",
 ];
+
+// Change this to whatever bucket name you create in Supabase Storage
+const CNIC_BUCKET = "cnic-images";
+
+async function uploadCnicImage(file: File, label: "front" | "back") {
+  const ext = file.name.split(".").pop();
+  const path = `${Date.now()}-${label}.${ext}`;
+
+  const { error } = await supabase.storage.from(CNIC_BUCKET).upload(path, file);
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(CNIC_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function FileDropInput({
+  value,
+  onChange,
+  label,
+}: {
+  value?: File;
+  onChange: (file?: File) => void;
+  label: string;
+}) {
+  const [preview, setPreview] = React.useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    if (!value) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(value);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [value]);
+
+  return (
+    <div className="space-y-1">
+      <label className="block font-semibold">{label} *</label>
+      <div
+        onClick={() => inputRef.current?.click()}
+        className="border border-dashed border-input rounded-md p-4 text-center cursor-pointer text-sm hover:bg-muted/40"
+      >
+        {preview ? (
+          <img src={preview} alt={label} className="mx-auto max-h-40 rounded-md object-contain" />
+        ) : (
+          <span className="text-muted-foreground">Click to upload {label.toLowerCase()}</span>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0])}
+      />
+    </div>
+  );
+}
 
 export default function NewConnectionForm() {
   const { toast } = useToast();
@@ -49,8 +123,10 @@ export default function NewConnectionForm() {
       email: "",
       address: "",
       cnic: "",
+      cnicFront: undefined,
+      cnicBack: undefined,
       plan: "",
-      equipmentPolicies: [],
+      equipmentPolicies: [...EQUIPMENT_POLICIES],
       additionalRouter: "",
       supportPolicy: "",
     },
@@ -58,6 +134,11 @@ export default function NewConnectionForm() {
 
   const onSubmit = async (data: NewConnectionFormData) => {
     try {
+      const [cnicFrontUrl, cnicBackUrl] = await Promise.all([
+        uploadCnicImage(data.cnicFront, "front"),
+        uploadCnicImage(data.cnicBack, "back"),
+      ]);
+
       const { error } = await supabase.from("new_connection_requests").insert([
         {
           service_for: data.serviceFor,
@@ -66,6 +147,8 @@ export default function NewConnectionForm() {
           email: data.email,
           address: data.address,
           cnic: data.cnic,
+          cnic_front_url: cnicFrontUrl,
+          cnic_back_url: cnicBackUrl,
           plan: data.plan,
           equipment_policies: data.equipmentPolicies.join(", "),
           additional_router: data.additionalRouter,
@@ -195,6 +278,42 @@ export default function NewConnectionForm() {
                     <div className="space-y-1">
                       <label className="block font-semibold">CNIC Number *</label>
                       <Input placeholder="xxxxx-xxxxxxx-x" maxLength={15} {...field} />
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
+
+                {/* CNIC Front Image */}
+                <Controller
+                  name="cnicFront"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <div className="space-y-1">
+                      <FileDropInput
+                        label="CNIC Front Image"
+                        value={field.value}
+                        onChange={(file) => field.onChange(file)}
+                      />
+                      {fieldState.error && (
+                        <p className="text-sm text-destructive">{fieldState.error.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
+
+                {/* CNIC Back Image */}
+                <Controller
+                  name="cnicBack"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <div className="space-y-1">
+                      <FileDropInput
+                        label="CNIC Back Image"
+                        value={field.value}
+                        onChange={(file) => field.onChange(file)}
+                      />
                       {fieldState.error && (
                         <p className="text-sm text-destructive">{fieldState.error.message}</p>
                       )}
