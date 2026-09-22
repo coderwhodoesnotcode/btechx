@@ -31,6 +31,7 @@ const PLAN_COLOR: Record<string, string> = {
   "Rs. 35000 For Packages 20Mbps upto 50Mbps": "bg-purple-100 text-purple-700",
   FTTH: "bg-green-100 text-green-700",
   "Own Equipments": "bg-orange-100 text-orange-700",
+  "Used Equipment": "bg-teal-100 text-teal-700",
 };
 
 const SERVICE_COLOR: Record<string, string> = {
