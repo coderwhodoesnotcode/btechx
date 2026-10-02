@@ -24,6 +24,9 @@ type Submission = {
   equipment_policies: string;
   additional_router: string;
   support_policy: string;
+  equipment_details: string | null;
+  equipment_cost: number | null;
+  amount_paid: number | null;
 };
 
 const PLAN_COLOR: Record<string, string> = {
@@ -116,6 +119,169 @@ function CnicImage({
           Not uploaded
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Equipment & Payment (admin fills this) ───────────────────────────────────
+function EquipmentSection({
+  s,
+  onSaved,
+}: {
+  s: Submission;
+  onSaved: (id: string, updates: Partial<Submission>) => void;
+}) {
+  const [details, setDetails] = useState(s.equipment_details ?? "");
+  const [cost, setCost] = useState(String(s.equipment_cost ?? 0));
+  const [paid, setPaid] = useState(String(s.amount_paid ?? 0));
+  const [newPayment, setNewPayment] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const remaining = (Number(cost) || 0) - (Number(paid) || 0);
+
+  const saveToDb = async (updates: {
+    equipment_details: string;
+    equipment_cost: number;
+    amount_paid: number;
+  }) => {
+    setSaving(true);
+    setSaved(false);
+    const { error } = await supabase
+      .from("new_connection_requests")
+      .update(updates)
+      .eq("id", s.id);
+    setSaving(false);
+    if (error) {
+      console.error(error);
+      alert("Save failed. Check console / Supabase update policy.");
+      return false;
+    }
+    onSaved(s.id, updates);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+    return true;
+  };
+
+  const handleSave = () =>
+    saveToDb({
+      equipment_details: details,
+      equipment_cost: Number(cost) || 0,
+      amount_paid: Number(paid) || 0,
+    });
+
+  const handleAddPayment = async () => {
+    const add = Number(newPayment) || 0;
+    if (add <= 0) return;
+    const total = (Number(paid) || 0) + add;
+    const ok = await saveToDb({
+      equipment_details: details,
+      equipment_cost: Number(cost) || 0,
+      amount_paid: total,
+    });
+    if (ok) {
+      setPaid(String(total));
+      setNewPayment("");
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    const total = Number(cost) || 0;
+    const ok = await saveToDb({
+      equipment_details: details,
+      equipment_cost: total,
+      amount_paid: total,
+    });
+    if (ok) setPaid(String(total));
+  };
+
+  return (
+    <div className="mt-5 pt-5 border-t border-input space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          Equipment &amp; Payment (Admin)
+        </p>
+        {(Number(cost) || 0) > 0 && (
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+              remaining <= 0
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            {remaining <= 0 ? "Fully Paid" : "Pending"}
+          </span>
+        )}
+      </div>
+
+      <Input
+        placeholder="Equipment given (e.g. Router, POE, 50m cable)"
+        value={details}
+        onChange={(e) => setDetails(e.target.value)}
+        className="bg-white text-black"
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Equipment Cost (Rs.)</p>
+          <Input
+            type="number"
+            min="0"
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            className="bg-white text-black"
+          />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Amount Paid (Rs.)</p>
+          <Input
+            type="number"
+            min="0"
+            value={paid}
+            onChange={(e) => setPaid(e.target.value)}
+            className="bg-white text-black"
+          />
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Remaining (Rs.)</p>
+          <div
+            className={`h-10 flex items-center px-3 rounded-md border border-input text-sm font-bold ${
+              remaining > 0 ? "text-red-600" : "text-green-600"
+            }`}
+          >
+            {remaining.toLocaleString()}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div className="sm:max-w-[200px]">
+          <p className="text-xs text-muted-foreground mb-1">New Payment Received (Rs.)</p>
+          <Input
+            type="number"
+            min="0"
+            placeholder="e.g. 1000"
+            value={newPayment}
+            onChange={(e) => setNewPayment(e.target.value)}
+            className="bg-white text-black"
+          />
+        </div>
+        <Button onClick={handleAddPayment} disabled={saving || !newPayment} variant="outline">
+          Add Payment
+        </Button>
+        <Button
+          onClick={handleMarkPaid}
+          disabled={saving || remaining <= 0}
+          variant="outline"
+          className="text-green-600 border-green-300 hover:bg-green-50"
+        >
+          Mark Fully Paid
+        </Button>
+        <Button onClick={handleSave} disabled={saving} variant="outline" className="sm:ml-auto">
+          {saving ? "Saving..." : "Save"}
+        </Button>
+        {saved && <span className="text-sm text-green-600">Saved ✓</span>}
+      </div>
     </div>
   );
 }
@@ -228,6 +394,12 @@ export default function AdminConnections() {
     setDeletingId(null);
   };
 
+  const handleEquipmentSaved = (id: string, updates: Partial<Submission>) => {
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("btechx_admin");
     setAuthed(false);
@@ -238,6 +410,7 @@ export default function AdminConnections() {
       "Date", "Name", "Phone", "Email", "CNIC",
       "Service For", "Plan", "Address",
       "Additional Router", "Support Policy", "Equipment Policies",
+      "Equipment Given", "Equipment Cost", "Amount Paid", "Remaining",
       "CNIC Front URL", "CNIC Back URL",
     ];
     const rows = filtered.map((s) => [
@@ -245,6 +418,10 @@ export default function AdminConnections() {
       s.name, s.phone, s.email, s.cnic,
       s.service_for, s.plan, s.address,
       s.additional_router, s.support_policy, s.equipment_policies,
+      s.equipment_details ?? "",
+      s.equipment_cost ?? 0,
+      s.amount_paid ?? 0,
+      (s.equipment_cost ?? 0) - (s.amount_paid ?? 0),
       s.cnic_front_url, s.cnic_back_url,
     ]);
     const csv = [headers, ...rows]
@@ -425,6 +602,9 @@ export default function AdminConnections() {
                     <CnicImage label="CNIC Front" url={s.cnic_front_url} onZoom={setLightboxSrc} />
                     <CnicImage label="CNIC Back" url={s.cnic_back_url} onZoom={setLightboxSrc} />
                   </div>
+
+                  {/* Equipment & Payment */}
+                  <EquipmentSection s={s} onSaved={handleEquipmentSaved} />
                 </Card>
               ))}
             </div>

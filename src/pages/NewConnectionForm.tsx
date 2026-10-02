@@ -337,8 +337,7 @@ export default function NewConnectionForm() {
                           Rs. 38,000 for 20 to 50 Mbps
                         </option>
                         <option value="FTTH">FTTH</option>
-                        <option value="Own Equipments">Own Equipments</option>
-                        <option value="Used Equipment">Used Equipment</option>
+                        
                       </select>
                       {fieldState.error && (
                         <p className="text-sm text-destructive">{fieldState.error.message}</p>
